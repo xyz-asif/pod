@@ -25,6 +25,9 @@ Dio dio(DioRef ref) {
         'Accept-Encoding': 'gzip, deflate',
         'Content-Type': 'application/json',
       },
+      // Allow all status codes (200, 400, 403, 500, etc.) to pass through
+      // so the caller can handle them. Dio defaults to throwing on 4xx/5xx.
+      validateStatus: (status) => status != null,
     ),
   );
 

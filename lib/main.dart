@@ -8,8 +8,7 @@ import 'package:pod/core/routing/app_router.dart';
 void main() {
   // YOU CONTROL THE ENVIRONMENT HERE — ONE LINE
   AppConfig.init(Environment.dev); // ← Change this line only!
-  // AppConfig.init(Environment.staging);
-  // AppConfig.init(Environment.prod);
+ 
 
   runApp(const ProviderScope(child: MyApp()));
 }
@@ -18,7 +17,7 @@ class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context, WidgetRef ref) { 
     ref.read(registerCoreProvidersProvider);
 
     final router = ref.watch(appRouterProvider);
