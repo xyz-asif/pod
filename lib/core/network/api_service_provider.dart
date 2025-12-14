@@ -1,12 +1,11 @@
 // lib/core/network/api_service_provider.dart
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
+// flutter/material import removed (unused)
 import 'package:pod/core/connectivity/connectivity_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:pod/core/di/locator.dart'; // ← ADDED
+import 'package:pod/core/di/locator.dart';
 import 'package:pod/core/error/failures.dart';
-import 'package:pod/core/network/dio_provider.dart'; // ← ADDED
-
+import 'package:pod/core/network/dio_provider.dart';
 import 'package:pod/core/utils/snackbar.dart';
 
 part 'api_service_provider.g.dart';
@@ -19,35 +18,87 @@ class ApiService extends _$ApiService {
   @override
   void build() {}
 
-  // Fixed: now correctly reads dioProvider
   late final Dio _dio = ref.read(dioProvider);
 
+  /// GET request
   Future<T> get<T>(
     String path, {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) =>
-      _call(() => _dio.get<T>(path,
-          queryParameters: queryParameters, options: options));
+      _call(() => _dio.get<T>(
+            path,
+            queryParameters: queryParameters,
+            options: options,
+          ));
 
+  /// POST request
   Future<T> post<T>(
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) =>
-      _call(() => _dio.post<T>(path,
-          data: data, queryParameters: queryParameters, options: options));
+      _call(() => _dio.post<T>(
+            path,
+            data: data,
+            queryParameters: queryParameters,
+            options: options,
+          ));
 
+  /// PUT request (full replacement)
+  Future<T> put<T>(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) =>
+      _call(() => _dio.put<T>(
+            path,
+            data: data,
+            queryParameters: queryParameters,
+            options: options,
+          ));
+
+  /// PATCH request (partial update)
+  Future<T> patch<T>(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) =>
+      _call(() => _dio.patch<T>(
+            path,
+            data: data,
+            queryParameters: queryParameters,
+            options: options,
+          ));
+
+  /// DELETE request
+  Future<T> delete<T>(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) =>
+      _call(() => _dio.delete<T>(
+            path,
+            data: data,
+            queryParameters: queryParameters,
+            options: options,
+          ));
+
+  /// Core request handler with retry logic
   Future<T> _call<T>(Future<Response<T>> Function() request) async {
     Failure? lastFailure;
 
     for (int i = 0; i < _maxRetries; i++) {
-      // CORRECT WAY — no more error
-      final isConnected = await ref
-          .read(connectivityStatusProvider.selectAsync((data) => data));
+      // Check connectivity
+      // Use the notifier to get current connectivity status (returns Future<bool>)
+      final isConnected =
+          await ref.read(connectivityStatusProvider.notifier).isConnected;
 
-      if (!(isConnected as bool)) {
+      if (!isConnected) {
         lastFailure = const NetworkFailure();
         final context = ref.read(navigatorKeyProvider).currentContext;
         if (context != null && context.mounted) {
@@ -59,17 +110,27 @@ class ApiService extends _$ApiService {
 
       try {
         final response = await request();
-        if (response.statusCode == 200 || response.statusCode == 201) {
+
+        // Success responses
+        if (response.statusCode != null &&
+            response.statusCode! >= 200 &&
+            response.statusCode! < 300) {
           return response.data as T;
         }
+
+        // Map error responses
         throw _mapStatusCode(response.statusCode!, response.data);
       } on DioException catch (e) {
         lastFailure = _mapDioError(e);
+
+        // Retry on specific errors
         if (_shouldRetry(e) && i < _maxRetries - 1) {
           await Future.delayed(_retryDelay);
           continue;
         }
-        rethrow;
+
+        // Throw a mapped Failure instead of rethrowing DioException
+        throw lastFailure;
       } catch (e) {
         throw lastFailure = UnknownFailure(e.toString());
       }
@@ -78,12 +139,14 @@ class ApiService extends _$ApiService {
     throw lastFailure!;
   }
 
+  /// Determine if request should be retried
   bool _shouldRetry(DioException e) =>
       e.type == DioExceptionType.connectionTimeout ||
       e.type == DioExceptionType.receiveTimeout ||
       e.type == DioExceptionType.sendTimeout ||
       (e.response?.statusCode ?? 0) >= 500;
 
+  /// Map Dio errors to Failures
   Failure _mapDioError(DioException e) {
     return switch (e.type) {
       DioExceptionType.connectionTimeout ||
@@ -96,13 +159,14 @@ class ApiService extends _$ApiService {
     };
   }
 
+  /// Map HTTP status codes to Failures
   Failure _mapStatusCode(int statusCode, dynamic data) {
     final message = data is Map ? data['message'] ?? data['error'] : null;
     return switch (statusCode) {
       400 => ServerFailure(message ?? 'Bad request', statusCode: 400),
-      401 => UnauthorizedFailure(),
-      403 => ServerFailure('Forbidden', statusCode: 403),
-      404 => NotFoundFailure(),
+      401 => const UnauthorizedFailure(),
+      403 => const ServerFailure('Forbidden', statusCode: 403),
+      404 => const NotFoundFailure(),
       422 => ValidationFailure(message ?? 'Validation failed'),
       _ => ServerFailure(message ?? 'Server error', statusCode: statusCode),
     };

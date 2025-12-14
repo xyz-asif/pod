@@ -5,23 +5,32 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'auth_repository.g.dart';
 
-/// Auth API response model
-class AuthResponse {
-  final String token;
-  final String? message;
+/// Generic login response model used by the API
+class LoginResponse {
   final bool success;
+  final int statusCode;
+  final String? message;
+  final dynamic data;
+  final String? timestamp;
+  final String? path;
 
-  AuthResponse({
-    required this.token,
-    this.message,
+  LoginResponse({
     required this.success,
+    required this.statusCode,
+    this.message,
+    this.data,
+    this.timestamp,
+    this.path,
   });
 
-  factory AuthResponse.fromJson(Map<String, dynamic> json) {
-    return AuthResponse(
-      token: json['token'] as String? ?? '',
-      message: json['message'] as String?,
+  factory LoginResponse.fromJson(Map<String, dynamic> json) {
+    return LoginResponse(
       success: json['success'] as bool? ?? false,
+      statusCode: json['statusCode'] as int? ?? 0,
+      message: json['message'] as String?,
+      data: json['data'],
+      timestamp: json['timestamp'] as String?,
+      path: json['path'] as String?,
     );
   }
 }
@@ -33,8 +42,8 @@ class AuthRepository {
   AuthRepository(this._dio);
 
   /// Login with email and password
-  /// Throws an exception with the server error message on failure
-  Future<AuthResponse> login({
+  /// Returns LoginResponse. Throws an exception for network / Dio errors
+  Future<LoginResponse> login({
     required String email,
     required String password,
     String account = 'user',
@@ -48,23 +57,9 @@ class AuthRepository {
           "account": account,
         },
       );
-
-      // Handle non-200 status codes
-      if (response.statusCode != 200) {
-        final errorMsg = response.data?['message'] ??
-            'Login failed (${response.statusCode})';
-        throw Exception(errorMsg);
-      }
-
-      // Parse and validate response
       final data = response.data as Map<String, dynamic>;
-      final token = data['token'] as String?;
-
-      if (token == null || token.isEmpty) {
-        throw Exception('No token received from server');
-      }
-
-      return AuthResponse.fromJson(data);
+      final result = LoginResponse.fromJson(data);
+      return result;
     } on DioException catch (e) {
       // Dio-specific error handling
       final errorMsg =
@@ -75,7 +70,7 @@ class AuthRepository {
 
   /// Register with email and password
   /// TODO: Implement when API endpoint is available
-  Future<AuthResponse> register({
+  Future<LoginResponse> register({
     required String email,
     required String password,
     required String name,

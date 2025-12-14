@@ -9,13 +9,13 @@ class ConnectivityStatus extends _$ConnectivityStatus {
   @override
   Stream<bool> build() {
     return Connectivity().onConnectivityChanged.map(
-          (results) => results.any((r) => r != ConnectivityResult.none),
+          (result) => result != ConnectivityResult.none,
         );
   }
 
   // Sync check (optional, but useful)
   Future<bool> get isConnected async {
     final result = await Connectivity().checkConnectivity();
-    return result.any((r) => r != ConnectivityResult.none);
+    return result != ConnectivityResult.none;
   }
 }

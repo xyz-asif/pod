@@ -2,7 +2,6 @@
 import 'package:dio/dio.dart';
 import 'package:pod/core/config/app_config.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:pod/core/network/api_endpoints.dart';
 import 'package:pod/core/network/interceptors/logging_interceptor.dart';
 import 'package:pod/core/utils/helpers/shared_prefs.dart';
 part 'dio_provider.g.dart';

@@ -1,27 +1,28 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'connectivity_provider.dart';
+part of 'login_controller.dart';
 
 // **************************************************************************
 // RiverpodGenerator
 // **************************************************************************
 
-String _$connectivityStatusHash() =>
-    r'5ac6d3e32f7d12bc643224fde660576c2477a6a7';
+String _$loginControllerHash() => r'0659df18b22415b0ffa45a3cd7080bb934bd7220';
 
-/// See also [ConnectivityStatus].
-@ProviderFor(ConnectivityStatus)
-final connectivityStatusProvider =
-    AutoDisposeStreamNotifierProvider<ConnectivityStatus, bool>.internal(
-  ConnectivityStatus.new,
-  name: r'connectivityStatusProvider',
+/// Login Controller - handles login business logic
+///
+/// Copied from [LoginController].
+@ProviderFor(LoginController)
+final loginControllerProvider =
+    AutoDisposeAsyncNotifierProvider<LoginController, void>.internal(
+  LoginController.new,
+  name: r'loginControllerProvider',
   debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
       ? null
-      : _$connectivityStatusHash,
+      : _$loginControllerHash,
   dependencies: null,
   allTransitiveDependencies: null,
 );
 
-typedef _$ConnectivityStatus = AutoDisposeStreamNotifier<bool>;
+typedef _$LoginController = AutoDisposeAsyncNotifier<void>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
