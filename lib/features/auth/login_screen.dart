@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:pod/features/auth/login_controller.dart';
-import 'package:pod/core/routing/navigation_extensions.dart';
+import 'package:pod/features/auth/models/user_model.dart'; // Added
+import 'package:pod/core/utils/snackbar.dart'; // Added
+import 'package:pod/core/routing/navigation_extensions.dart'; // Added
+
 import 'package:pod/core/theme/app_colors.dart';
 import 'package:pod/core/theme/app_text_styles.dart';
 import 'package:pod/core/constants/app_sizes.dart';
@@ -30,7 +33,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
+  void _handleLogin() {
     if (!_formKey.currentState!.validate()) return;
 
     ref.read(loginControllerProvider.notifier).login(
@@ -40,36 +43,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
   }
 
-  String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Email is required';
-    }
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value)) {
-      return 'Enter a valid email';
-    }
-    return null;
-  }
-
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Password is required';
-    }
-    if (value.length < 6) {
-      return 'Password must be at least 6 characters';
-    }
-    return null;
-  }
-
-  String? _validateAccount(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Account is required';
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
+    // ✅ ADD THIS: This handles the "Actions" (Side Effects)
+    ref.listen<AsyncValue<UserModel?>>(
+      loginControllerProvider,
+      (previous, next) {
+        next.when(
+          data: (user) {
+            if (user != null) {
+              AppSnackBar.success(context, 'Welcome back, ${user.name}!');
+              context.goToHome(); // Navigate to Home on success
+            }
+          },
+          error: (error, stackTrace) {
+            AppSnackBar.error(context, error.toString()); // Show error toast
+          },
+          loading: () {}, // Handled by the button UI
+        );
+      },
+    );
+
     final loginState = ref.watch(loginControllerProvider);
     final isLoading = loginState.isLoading;
 
@@ -84,22 +78,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: 40.h),
-
-                // Welcome Text
-                Text(
-                  'Welcome Back!',
-                  style: AppTextStyles.h1.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                ),
+                Text('Welcome Back!', style: AppTextStyles.h1),
                 SizedBox(height: 8.h),
-                Text(
-                  'Login to continue',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-
+                Text('Login to continue', style: AppTextStyles.bodyMedium),
                 SizedBox(height: 48.h),
 
                 // Email Field
@@ -107,18 +88,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   enabled: !isLoading,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'Enter your email',
-                    prefixIcon: Icon(
-                      Icons.email_outlined,
-                      size: AppSizes.iconMedium,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  validator: _validateEmail,
+                  decoration: const InputDecoration(
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.email_outlined)),
+                  validator: (val) =>
+                      (val == null || val.isEmpty) ? 'Required' : null,
                 ),
-
                 SizedBox(height: 16.h),
 
                 // Password Field
@@ -128,102 +103,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   enabled: !isLoading,
                   decoration: InputDecoration(
                     labelText: 'Password',
-                    hintText: 'Enter your password',
-                    prefixIcon: Icon(
-                      Icons.lock_outline,
-                      size: AppSizes.iconMedium,
-                      color: AppColors.textSecondary,
-                    ),
+                    prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                        size: AppSizes.iconMedium,
-                        color: AppColors.textSecondary,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
+                      icon: Icon(_obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
-                  validator: _validatePassword,
+                  validator: (val) =>
+                      (val == null || val.length < 6) ? 'Min 6 chars' : null,
                 ),
-
-                SizedBox(height: 16.h),
-
-                // Account Field
-                TextFormField(
-                  controller: _accountController,
-                  enabled: !isLoading,
-                  decoration: InputDecoration(
-                    labelText: 'Account',
-                    hintText: 'Enter account name',
-                    prefixIcon: Icon(
-                      Icons.business_outlined,
-                      size: AppSizes.iconMedium,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  validator: _validateAccount,
-                ),
-
                 SizedBox(height: 32.h),
 
                 // Login Button
                 SizedBox(
                   width: double.infinity,
                   height: AppSizes.buttonHeight,
-                  child: loginState.when(
-                    data: (_) => _buildGradientButton(
-                      onPressed: _login,
-                      child: Text('Login', style: AppTextStyles.button),
-                    ),
-                    loading: () => _buildGradientButton(
-                      onPressed: null,
-                      child: SizedBox(
-                        height: 24.r,
-                        width: 24.r,
-                        child: const CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    error: (error, _) => _buildGradientButton(
-                      onPressed: _login,
-                      child: Text('Retry Login', style: AppTextStyles.button),
-                    ),
-                  ),
-                ),
-
-                SizedBox(height: 24.h),
-
-                // Register Link
-                Center(
-                  child: TextButton(
-                    onPressed: isLoading ? null : () => context.goToRegister(),
-                    child: RichText(
-                      text: TextSpan(
-                        text: "Don't have an account? ",
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                        children: [
-                          TextSpan(
-                            text: 'Register',
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  child: _buildGradientButton(
+                    onPressed: isLoading ? null : _handleLogin,
+                    child: isLoading
+                        ? SizedBox(
+                            height: 20.r,
+                            width: 20.r,
+                            child: const CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : Text('Login', style: AppTextStyles.button),
                   ),
                 ),
               ],
@@ -234,38 +140,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildGradientButton({
-    required VoidCallback? onPressed,
-    required Widget child,
-  }) {
+  Widget _buildGradientButton(
+      {required VoidCallback? onPressed, required Widget child}) {
     return Container(
       decoration: BoxDecoration(
         gradient: onPressed != null
             ? const LinearGradient(
-                colors: [AppColors.gradient1, AppColors.gradient2],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              )
+                colors: [AppColors.gradient1, AppColors.gradient2])
             : null,
-        color: onPressed == null ? AppColors.grey.withOpacity(0.3) : null,
+        color: onPressed == null ? Colors.grey.shade300 : null,
         borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-        boxShadow: onPressed != null
-            ? [
-                BoxShadow(
-                  color: AppColors.gradient2.withOpacity(0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
-                ),
-              ]
-            : null,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
-          child: Center(child: child),
-        ),
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(AppSizes.radiusMedium),
+            child: Center(child: child)),
       ),
     );
   }

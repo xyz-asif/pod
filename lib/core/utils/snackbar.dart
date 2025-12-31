@@ -1,55 +1,59 @@
-// lib/core/utils/snackbar.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pod/core/di/locator.dart';
+import 'package:pod/core/di/locator.dart'; // Assuming navigatorKeyProvider is here
+import 'package:pod/core/theme/app_colors.dart';
 
 class AppSnackBar {
-  // From widgets (with context)
-  static void warning(BuildContext context, String message) =>
-      _show(context, message, Colors.orange);
-  static void error(BuildContext context, String message) =>
-      _show(context, message, Colors.red);
+  // --- UI Methods ---
   static void success(BuildContext context, String message) =>
-      _show(context, message, Colors.green);
+      _show(context, message, AppColors.success, Icons.check_circle);
 
-  // From anywhere (notifiers, providers, background) — NO CONTEXT NEEDED
-  static void globalWarning(WidgetRef ref, String message) =>
-      _showGlobal(ref, message, Colors.orange);
-  static void globalError(WidgetRef ref, String message) =>
-      _showGlobal(ref, message, Colors.red);
-  static void globalSuccess(WidgetRef ref, String message) =>
-      _showGlobal(ref, message, Colors.green);
+  static void error(BuildContext context, String message) =>
+      _show(context, message, AppColors.error, Icons.error);
 
-  static void _show(BuildContext context, String message, Color color) {
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: color,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+  static void warning(BuildContext context, String message) =>
+      _show(context, message, AppColors.warning, Icons.warning);
+
+  // --- Global Methods (For Providers/Notifiers) ---
+  static void globalError(WidgetRef ref, String message) {
+    final context = ref.read(navigatorKeyProvider).currentContext;
+    if (context != null) error(context, message);
   }
 
-  static void _showGlobal(WidgetRef ref, String message, Color color) {
-    // Get the navigator key to access the context
-    final navigatorKey = ref.read(navigatorKeyProvider);
-    final context = navigatorKey.currentContext;
+  static void globalSuccess(WidgetRef ref, String message) {
+    final context = ref.read(navigatorKeyProvider).currentContext;
+    if (context != null) success(context, message);
+  }
 
-    if (context != null && context.mounted) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: color,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-    }
+  // --- Private Core Logic ---
+  static void _show(
+      BuildContext context, String message, Color color, IconData icon) {
+    // 1. Safety check
+    if (!context.mounted) return;
+
+    // 2. Clear existing snackbars so they don't queue up
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    // 3. Show the styled SnackBar
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(message,
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w500)),
+            ),
+          ],
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 }

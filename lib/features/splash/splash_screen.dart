@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pod/core/routing/routes.dart';
+import 'package:pod/core/theme/app_colors.dart';
+import 'package:pod/core/utils/helpers/shared_prefs.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -15,47 +17,34 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeApp();
+    _navigate();
   }
 
-  Future<void> _initializeApp() async {
-    // Add any initialization logic here
-    // - Check auth status
-    // - Load cached data
-    // - Initialize services
-    
-    await Future.delayed(const Duration(seconds: 2)); // Simulate loading
-    
+  Future<void> _navigate() async {
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    final prefs = await ref.read(sharedPrefsProvider.future);
+    final isLoggedIn = await prefs.isLoggedIn();
+
     if (mounted) {
-      // TODO: Check if user is logged in from SharedPrefs/SecureStorage
-      // For now, just navigate to login
-      context.go(Routes.login);
+      context.go(isLoggedIn ? Routes.home : Routes.login);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.primary,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Add your app logo here
-            Icon(
-              Icons.flutter_dash,
-              size: 100,
-              color: Theme.of(context).primaryColor,
-            ),
+            // Add your logo here
+            Icon(Icons.podcasts, size: 100, color: AppColors.white),
             const SizedBox(height: 24),
-            const Text(
-              'Pod App',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 48),
-            const CircularProgressIndicator(),
+            CircularProgressIndicator(color: AppColors.white),
           ],
         ),
       ),

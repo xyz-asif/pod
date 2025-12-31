@@ -89,6 +89,8 @@ class MyApp extends ConsumerWidget {
 // Optional: Riverpod Logger for debugging
 // ═══════════════════════════════════════════════════════════════════════════
 
+// lib/main.dart - Update RiverpodLogger
+
 class RiverpodLogger extends ProviderObserver {
   @override
   void didAddProvider(
@@ -96,7 +98,10 @@ class RiverpodLogger extends ProviderObserver {
     Object? value,
     ProviderContainer container,
   ) {
-    Logger.i('Provider added: ${provider.name ?? provider.runtimeType}');
+    // Only log in debug mode AND if it's an important provider
+    if (AppConfig.isDebug) {
+      Logger.i('Provider added: ${provider.name ?? provider.runtimeType}');
+    }
   }
 
   @override
@@ -106,7 +111,9 @@ class RiverpodLogger extends ProviderObserver {
     Object? newValue,
     ProviderContainer container,
   ) {
-    Logger.i('Provider updated: ${provider.name ?? provider.runtimeType}');
+    // Don't log updates - too noisy
+    // Only uncomment if debugging a specific issue
+    // Logger.i('Provider updated: ${provider.name ?? provider.runtimeType}');
   }
 
   @override
@@ -114,7 +121,8 @@ class RiverpodLogger extends ProviderObserver {
     ProviderBase<Object?> provider,
     ProviderContainer container,
   ) {
-    Logger.i('Provider disposed: ${provider.name ?? provider.runtimeType}');
+    // Only log disposal if debugging
+    // Logger.i('Provider disposed: ${provider.name ?? provider.runtimeType}');
   }
 
   @override
@@ -124,8 +132,12 @@ class RiverpodLogger extends ProviderObserver {
     StackTrace stackTrace,
     ProviderContainer container,
   ) {
+    // ✅ ALWAYS log failures (even in production for crash reporting)
     Logger.e(
-        'Provider failed: ${provider.name ?? provider.runtimeType} - $error');
+      'Provider failed: ${provider.name ?? provider.runtimeType}',
+      error,
+      stackTrace,
+    );
   }
 }
 

@@ -1,7 +1,7 @@
 // lib/core/network/api_service_provider.dart
 import 'package:dio/dio.dart';
-// flutter/material import removed (unused)
 import 'package:pod/core/connectivity/connectivity_provider.dart';
+import 'package:pod/core/network/api_response.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:pod/core/di/locator.dart';
 import 'package:pod/core/error/failures.dart';
@@ -20,90 +20,44 @@ class ApiService extends _$ApiService {
 
   late final Dio _dio = ref.read(dioProvider);
 
-  /// GET request
+  // --- Public API Methods ---
+
   Future<T> get<T>(
     String path, {
     Map<String, dynamic>? queryParameters,
-    Options? options,
+    required T Function(Object?) fromJsonT,
   }) =>
-      _call(() => _dio.get<T>(
-            path,
-            queryParameters: queryParameters,
-            options: options,
-          ));
+      _call(() => _dio.get(path, queryParameters: queryParameters), fromJsonT);
 
-  /// POST request
   Future<T> post<T>(
     String path, {
     dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
+    required T Function(Object?) fromJsonT,
   }) =>
-      _call(() => _dio.post<T>(
-            path,
-            data: data,
-            queryParameters: queryParameters,
-            options: options,
-          ));
+      _call(() => _dio.post(path, data: data), fromJsonT);
 
-  /// PUT request (full replacement)
   Future<T> put<T>(
     String path, {
     dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
+    required T Function(Object?) fromJsonT,
   }) =>
-      _call(() => _dio.put<T>(
-            path,
-            data: data,
-            queryParameters: queryParameters,
-            options: options,
-          ));
+      _call(() => _dio.put(path, data: data), fromJsonT);
 
-  /// PATCH request (partial update)
-  Future<T> patch<T>(
-    String path, {
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-  }) =>
-      _call(() => _dio.patch<T>(
-            path,
-            data: data,
-            queryParameters: queryParameters,
-            options: options,
-          ));
+  // --- Internal Logic ---
 
-  /// DELETE request
-  Future<T> delete<T>(
-    String path, {
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-  }) =>
-      _call(() => _dio.delete<T>(
-            path,
-            data: data,
-            queryParameters: queryParameters,
-            options: options,
-          ));
-
-  /// Core request handler with retry logic
-  Future<T> _call<T>(Future<Response<T>> Function() request) async {
+  Future<T> _call<T>(
+    Future<Response<dynamic>> Function() request,
+    T Function(Object?) fromJsonT,
+  ) async {
     Failure? lastFailure;
 
     for (int i = 0; i < _maxRetries; i++) {
-      // Check connectivity
-      // Use the notifier to get current connectivity status (returns Future<bool>)
       final isConnected =
           await ref.read(connectivityStatusProvider.notifier).isConnected;
 
       if (!isConnected) {
         lastFailure = const NetworkFailure();
-        final context = ref.read(navigatorKeyProvider).currentContext;
-        if (context != null && context.mounted) {
-          AppSnackBar.warning(context, 'No internet connection');
-        }
+        _showNoInternetToast();
         if (i < _maxRetries - 1) await Future.delayed(_retryDelay);
         continue;
       }
@@ -111,63 +65,69 @@ class ApiService extends _$ApiService {
       try {
         final response = await request();
 
-        // Success responses
         if (response.statusCode != null &&
             response.statusCode! >= 200 &&
             response.statusCode! < 300) {
-          return response.data as T;
+          // 1. Centralized Unwrapping
+          final apiResponse = ApiResponse<T>.fromJson(
+            response.data as Map<String, dynamic>,
+            fromJsonT,
+          );
+
+          // 2. Success Flag Validation
+          if (!apiResponse.success) {
+            throw ServerFailure(apiResponse.message,
+                statusCode: apiResponse.statusCode);
+          }
+
+          // 3. Return only the data payload
+          if (apiResponse.data == null) {
+            throw const ServerFailure('No data returned from server');
+          }
+
+          return apiResponse.data!;
         }
 
-        // Map error responses
         throw _mapStatusCode(response.statusCode!, response.data);
       } on DioException catch (e) {
         lastFailure = _mapDioError(e);
-
-        // Retry on specific errors
         if (_shouldRetry(e) && i < _maxRetries - 1) {
           await Future.delayed(_retryDelay);
           continue;
         }
-
-        // Throw a mapped Failure instead of rethrowing DioException
         throw lastFailure;
       } catch (e) {
-        throw lastFailure = UnknownFailure(e.toString());
+        if (e is Failure) rethrow;
+        throw UnknownFailure(e.toString());
       }
     }
-
     throw lastFailure!;
   }
 
-  /// Determine if request should be retried
+  void _showNoInternetToast() {
+    final context = ref.read(navigatorKeyProvider).currentContext;
+    if (context != null && context.mounted) {
+      AppSnackBar.warning(context, 'No internet connection');
+    }
+  }
+
   bool _shouldRetry(DioException e) =>
       e.type == DioExceptionType.connectionTimeout ||
       e.type == DioExceptionType.receiveTimeout ||
-      e.type == DioExceptionType.sendTimeout ||
       (e.response?.statusCode ?? 0) >= 500;
 
-  /// Map Dio errors to Failures
   Failure _mapDioError(DioException e) {
-    return switch (e.type) {
-      DioExceptionType.connectionTimeout ||
-      DioExceptionType.receiveTimeout ||
-      DioExceptionType.sendTimeout =>
-        const ServerFailure('Request timeout', statusCode: 408),
-      DioExceptionType.badResponse =>
-        _mapStatusCode(e.response!.statusCode!, e.response!.data),
-      _ => NetworkFailure(e.message),
-    };
+    if (e.type == DioExceptionType.badResponse) {
+      return _mapStatusCode(e.response!.statusCode!, e.response!.data);
+    }
+    return const NetworkFailure('Network connection error');
   }
 
-  /// Map HTTP status codes to Failures
   Failure _mapStatusCode(int statusCode, dynamic data) {
     final message = data is Map ? data['message'] ?? data['error'] : null;
     return switch (statusCode) {
-      400 => ServerFailure(message ?? 'Bad request', statusCode: 400),
-      401 => const UnauthorizedFailure(),
-      403 => const ServerFailure('Forbidden', statusCode: 403),
-      404 => const NotFoundFailure(),
-      422 => ValidationFailure(message ?? 'Validation failed'),
+      401 => UnauthorizedFailure(message),
+      404 => NotFoundFailure(message),
       _ => ServerFailure(message ?? 'Server error', statusCode: statusCode),
     };
   }

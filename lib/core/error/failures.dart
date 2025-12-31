@@ -3,6 +3,9 @@ sealed class Failure {
   const Failure(this.message, {this.statusCode});
   final String message;
   final int? statusCode;
+
+  @override
+  String toString() => message;
 }
 
 // Network & API failures (your ApiException → now a sealed class)
