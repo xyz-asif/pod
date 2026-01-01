@@ -43,25 +43,44 @@ class ApiService extends _$ApiService {
   }) =>
       _call(() => _dio.put(path, data: data), fromJsonT);
 
+  // ✅ NEW: PATCH method
+  Future<T> patch<T>(
+    String path, {
+    dynamic data,
+    required T Function(Object?) fromJsonT,
+  }) =>
+      _call(() => _dio.patch(path, data: data), fromJsonT);
+
+  // ✅ NEW: DELETE method
+  Future<T> delete<T>(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    required T Function(Object?) fromJsonT,
+  }) =>
+      _call(
+        () => _dio.delete(path, queryParameters: queryParameters),
+        fromJsonT,
+      );
+
   // --- Internal Logic ---
 
   Future<T> _call<T>(
     Future<Response<dynamic>> Function() request,
     T Function(Object?) fromJsonT,
   ) async {
+    // ✅ FIXED: Check connectivity ONCE upfront (not inside retry loop)
+    final isConnected =
+        await ref.read(connectivityStatusProvider.notifier).isConnected;
+
+    if (!isConnected) {
+      _showNoInternetToast();
+      throw const NetworkFailure();
+    }
+
     Failure? lastFailure;
 
+    // ✅ Retry loop now only runs for actual network/server errors
     for (int i = 0; i < _maxRetries; i++) {
-      final isConnected =
-          await ref.read(connectivityStatusProvider.notifier).isConnected;
-
-      if (!isConnected) {
-        lastFailure = const NetworkFailure();
-        _showNoInternetToast();
-        if (i < _maxRetries - 1) await Future.delayed(_retryDelay);
-        continue;
-      }
-
       try {
         final response = await request();
 

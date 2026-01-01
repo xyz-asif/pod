@@ -5,7 +5,7 @@ enum Environment { dev, staging, prod }
 class AppConfig {
   // Init once in main.dart
   static late Environment _env;
-  
+
   static void init(Environment env) => _env = env;
 
   // Environment-specific base URLs
@@ -22,19 +22,19 @@ class AppConfig {
   static String get register => '/auth/register';
   static String get logout => '/auth/logout';
   static String get refreshToken => '/auth/refresh';
-  
+
   // User Endpoints
   static String get me => '/user/me';
   static String get updateProfile => '/user/profile';
   static String get deleteAccount => '/user/account';
-  
+
   // Product Endpoints
   static String get products => '/products';
   static String productDetail(String id) => '/products/$id';
   static String get createProduct => '/products';
   static String updateProduct(String id) => '/products/$id';
   static String deleteProduct(String id) => '/products/$id';
-  
+
   // Order Endpoints
   static String get orders => '/orders';
   static String orderDetail(String id) => '/orders/$id';
@@ -44,25 +44,25 @@ class AppConfig {
   // App Metadata
   static String get appName => 'Pod';
   static String get appVersion => '1.0.0';
-  
+
   // Feature Flags
   static bool get isDebug => _env != Environment.prod;
   static bool get enableLogging => _env != Environment.prod;
   static bool get enableAnalytics => _env == Environment.prod;
-  
+
   // Timeouts
   static const connectTimeout = Duration(seconds: 60);
   static const receiveTimeout = Duration(seconds: 60);
   static const sendTimeout = Duration(seconds: 60);
-  
+
   // Pagination
   static const defaultPageSize = 20;
   static const maxPageSize = 100;
-  
+
   // Cache
   static const defaultCacheDuration = Duration(minutes: 5);
   static const imageCacheDuration = Duration(hours: 24);
-  
+
   // Current environment (useful for debugging)
   static String get environmentName => _env.name;
 }

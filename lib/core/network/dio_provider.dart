@@ -4,6 +4,10 @@ import 'package:pod/core/config/app_config.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:pod/core/network/interceptors/logging_interceptor.dart';
 import 'package:pod/core/utils/helpers/shared_prefs.dart';
+import 'package:pod/core/di/locator.dart';
+import 'package:pod/core/routing/routes.dart';
+import 'package:go_router/go_router.dart';
+
 part 'dio_provider.g.dart';
 
 @riverpod
@@ -19,7 +23,6 @@ Dio dio(DioRef ref) {
       receiveTimeout: const Duration(seconds: 60),
       headers: {
         'Accept': 'application/json',
-        // GitHub API prefers a user-agent and recommends explicit media type
         'User-Agent': 'pod-app',
         'Accept-Encoding': 'gzip, deflate',
         'Content-Type': 'application/json',
@@ -30,7 +33,7 @@ Dio dio(DioRef ref) {
     ),
   );
 
-  // Add your token/session refresh interceptor
+  // ✅ Token/session interceptor WITH TOKEN REFRESH
   dio.interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) async {
@@ -48,7 +51,7 @@ Dio dio(DioRef ref) {
         return handler.next(options);
       },
       onResponse: (response, handler) async {
-        // Auto-save new token/session from headers (exactly like your old code)
+        // Auto-save new token/session from headers
         final newToken = response.headers.value('token');
         final newSession = response.headers.value('sessionid');
 
@@ -61,6 +64,64 @@ Dio dio(DioRef ref) {
         }
 
         return handler.next(response);
+      },
+      // ✅ NEW: Handle 401 and attempt token refresh
+      onError: (error, handler) async {
+        if (error.response?.statusCode == 401) {
+          final prefs = await ref.read(sharedPrefsProvider.future);
+          final refreshToken = await prefs.getRefreshToken();
+
+          if (refreshToken != null) {
+            try {
+              // Create separate Dio instance for refresh (no interceptors)
+              final refreshDio = Dio(
+                BaseOptions(
+                  baseUrl: AppConfig.baseUrl,
+                  connectTimeout: const Duration(seconds: 10),
+                  receiveTimeout: const Duration(seconds: 10),
+                ),
+              );
+
+              // Call refresh endpoint
+              final response = await refreshDio.post(
+                AppConfig.refreshToken,
+                data: {'refreshToken': refreshToken},
+              );
+
+              if (response.statusCode == 200 &&
+                  response.data['success'] == true) {
+                final data = response.data['data'];
+                final newToken = data['token'] ?? data['accessToken'];
+                final newRefreshToken = data['refreshToken'];
+
+                if (newToken != null) {
+                  // Save new tokens
+                  await prefs.saveToken(newToken);
+                  if (newRefreshToken != null) {
+                    await prefs.saveRefreshToken(newRefreshToken);
+                  }
+
+                  // Retry original request with new token
+                  error.requestOptions.headers['Authorization'] =
+                      'Bearer $newToken';
+                  final retryResponse = await dio.fetch(error.requestOptions);
+                  return handler.resolve(retryResponse);
+                }
+              }
+            } catch (_) {
+              // Refresh failed - logout user
+              await prefs.clearAuth();
+              await prefs.setLoggedIn(false);
+
+              final context = ref.read(navigatorKeyProvider).currentContext;
+              if (context != null && context.mounted) {
+                context.go(Routes.login);
+              }
+            }
+          }
+        }
+
+        return handler.next(error);
       },
     ),
   );
