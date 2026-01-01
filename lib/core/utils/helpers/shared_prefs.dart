@@ -42,4 +42,22 @@ class SharedPrefsHelper {
   Future<void> clearAll() async {
     await _prefs.clear();
   }
+
+  // Add these two methods if they don't exist:
+
+  Future<void> saveRefreshToken(String refreshToken) async {
+    await _prefs.setString('refresh_token', refreshToken);
+  }
+
+  Future<String?> getRefreshToken() async {
+    return _prefs.getString('refresh_token');
+  }
+
+  Future<void> clearAuth() async {
+    await Future.wait([
+      _prefs.remove('auth_token'),
+      _prefs.remove('refresh_token'),
+      _prefs.remove('session_id'),
+    ]);
+  }
 }
