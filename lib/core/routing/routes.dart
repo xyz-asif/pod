@@ -1,22 +1,71 @@
 // lib/core/routing/routes.dart
+
 class Routes {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AUTH ROUTES
+  // ═══════════════════════════════════════════════════════════════════════════
   static const splash = '/splash';
   static const login = '/login';
-  static const register = '/register';
-  static const home = '/';
-  static const products = '/products';
-  // Path segment for product detail (used for nested routes)
-  static const productDetail = '/products/:productId';
-  // Unique route name for product detail (full path becomes /products/:id)
-  static const productDetailName = 'product_detail';
-  static const orders = '/orders';
-  // Path segment for order detail (used for nested routes)
-  static const orderDetail = '/orders/:orderId';
-  // Unique route name for order detail (full path becomes /orders/:id)
-  static const orderDetailName = 'order_detail';
-  static const profile = '/profile';
-  static const settings = '/settings';
+  static const setUsername = '/set-username';
 
-  static String productDetailPath(String id) => '/products/$id';
-  static String orderDetailPath(String id) => '/orders/$id';
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MAIN ROUTES
+  // ═══════════════════════════════════════════════════════════════════════════
+  static const home = '/';
+  static const feed = '/feed';
+  static const discover = '/discover';
+  static const search = '/search';
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ANCHOR ROUTES
+  // ═══════════════════════════════════════════════════════════════════════════
+  static const anchors = '/anchors';
+  static const anchorDetail = '/anchors/:anchorId';
+  static const anchorDetailName = 'anchor_detail';
+  static const createAnchor = '/anchors/create';
+  static const editAnchor = '/anchors/:anchorId/edit';
+  static const editAnchorName = 'anchor_edit';
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PROFILE ROUTES
+  // ═══════════════════════════════════════════════════════════════════════════
+  static const profile = '/profile';
+  static const userProfile = '/users/:userId';
+  static const userProfileName = 'user_profile';
+  static const userProfileByUsername = '/u/:username';
+  static const userProfileByUsernameName = 'user_profile_by_username';
+  static const editProfile = '/profile/edit';
+  static const myAnchors = '/profile/anchors';
+  static const myLikes = '/profile/likes';
+  static const myClones = '/profile/clones';
+  static const followers = '/profile/followers';
+  static const following = '/profile/following';
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SETTINGS
+  // ═══════════════════════════════════════════════════════════════════════════
+  static const settings = '/settings';
+  static const notifications = '/notifications';
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PATH BUILDERS (with parameters)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// /anchors/{id}
+  static String anchorDetailPath(String id) => '/anchors/$id';
+
+  /// /anchors/{id}/edit
+  static String editAnchorPath(String id) => '/anchors/$id/edit';
+
+  /// /users/{id}
+  static String userProfilePath(String userId) => '/users/$userId';
+
+  /// /u/{username}
+  static String userProfileByUsernamePath(String username) => '/u/$username';
+
+  /// /users/{id}/followers
+  static String userFollowersPath(String userId) => '/users/$userId/followers';
+
+  /// /users/{id}/following
+  static String userFollowingPath(String userId) => '/users/$userId/following';
 }

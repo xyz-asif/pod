@@ -84,7 +84,7 @@ Dio dio(DioRef ref) {
 
               // Call refresh endpoint
               final response = await refreshDio.post(
-                AppConfig.refreshToken,
+                AppConfig.authRefresh,
                 data: {'refreshToken': refreshToken},
               );
 
